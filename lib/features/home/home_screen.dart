@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/glass_panel.dart';
 import '../../providers/navigation_provider.dart';
+import '../../providers/settings_provider.dart';
 import '../settings/settings_screen.dart';
 import '../trip_summary/trip_summary_screen.dart';
 import 'widgets/mode_chip.dart';
+import 'widgets/outage_banner.dart';
 import 'widgets/outage_control_sheet.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -20,6 +23,14 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final _mapController = MapController();
   bool _followVehicle = true;
+  PositionMode? _lastMode;
+
+  void _maybeBuzz(NavigationProvider nav, SettingsProvider settings) {
+    if (_lastMode != null && _lastMode != nav.mode && settings.hapticOnModeChange) {
+      HapticFeedback.selectionClick();
+    }
+    _lastMode = nav.mode;
+  }
 
   void _openOutageSheet() {
     showModalBottomSheet(
@@ -36,7 +47,10 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavigationProvider>();
+    final settings = context.watch<SettingsProvider>();
     final accent = AppColors.modeColor(nav.mode.key);
+
+    _maybeBuzz(nav, settings);
 
     if (_followVehicle) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -79,20 +93,36 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
 
-          // Top bar: mode chip + settings.
+          // Top bar: mode chip + settings, with a countdown banner while an outage runs.
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ModeChip(mode: nav.mode),
-                  _CircleIconButton(
-                    icon: Icons.tune_rounded,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      AnimatedOpacity(
+                        duration: const Duration(milliseconds: 300),
+                        opacity: settings.hideModeChip ? 0 : 1,
+                        child: IgnorePointer(
+                          ignoring: settings.hideModeChip,
+                          child: ModeChip(mode: nav.mode),
+                        ),
+                      ),
+                      _CircleIconButton(
+                        icon: Icons.tune_rounded,
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        ),
+                      ),
+                    ],
                   ),
+                  if (!settings.hideModeChip) ...[
+                    const SizedBox(height: 10),
+                    OutageBannerSlot(mode: nav.mode, secondsRemaining: nav.outageSecondsRemaining),
+                  ],
                 ],
               ),
             ),
@@ -139,11 +169,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(width: 12),
                         FloatingActionButton.extended(
-                          onPressed: _openOutageSheet,
-                          backgroundColor: AppColors.sensorOnly,
+                          onPressed: nav.outageActive ? null : _openOutageSheet,
+                          backgroundColor:
+                              nav.outageActive ? AppColors.hairline : AppColors.sensorOnly,
                           foregroundColor: AppColors.background,
                           icon: const Icon(Icons.wifi_off_rounded),
-                          label: const Text('Simulate outage'),
+                          label: Text(nav.outageActive ? 'Outage running…' : 'Simulate outage'),
                         ),
                       ],
                     ),

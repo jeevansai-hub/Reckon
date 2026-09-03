@@ -1,22 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/widgets/glass_panel.dart';
+import '../../providers/settings_provider.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
-
-class _SettingsScreenState extends State<SettingsScreen> {
-  bool _hideModeChip = false;
-  bool _useLocalOsmExtract = false;
-  bool _hapticOnModeChange = true;
-
-  @override
   Widget build(BuildContext context) {
+    final settings = context.watch<SettingsProvider>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: Container(
@@ -33,15 +28,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     activeThumbColor: AppColors.gps,
                     title: const Text('Hide mode chip'),
                     subtitle: const Text('For a pure "look, it\'s seamless" demo moment'),
-                    value: _hideModeChip,
-                    onChanged: (v) => setState(() => _hideModeChip = v),
+                    value: settings.hideModeChip,
+                    onChanged: settings.setHideModeChip,
                   ),
                   const Divider(height: 1, color: AppColors.hairline),
                   SwitchListTile(
                     activeThumbColor: AppColors.gps,
                     title: const Text('Haptic on mode change'),
-                    value: _hapticOnModeChange,
-                    onChanged: (v) => setState(() => _hapticOnModeChange = v),
+                    value: settings.hapticOnModeChange,
+                    onChanged: settings.setHapticOnModeChange,
                   ),
                 ],
               ),
@@ -53,9 +48,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: SwitchListTile(
                 activeThumbColor: AppColors.gps,
                 title: const Text('Use local OSM extract'),
-                subtitle: const Text('For offline demo routes with no network — see open question in Project-Context §10'),
-                value: _useLocalOsmExtract,
-                onChanged: (v) => setState(() => _useLocalOsmExtract = v),
+                subtitle: const Text(
+                  'For offline demo routes with no network — see open question in Project-Context §10',
+                ),
+                value: settings.useLocalOsmExtract,
+                onChanged: settings.setUseLocalOsmExtract,
               ),
             ),
             const SizedBox(height: 20),

@@ -55,6 +55,9 @@ class NavigationProvider extends ChangeNotifier {
   List<LatLng> get path => List.unmodifiable(_path);
   bool get outageActive => _outageActive;
 
+  /// Seconds left in the simulated outage, for a live countdown in the UI.
+  int get outageSecondsRemaining => (_outageTicksRemaining * 900 / 1000).ceil();
+
   double _tripDistanceMetres = 0;
   double get tripDistanceMetres => _tripDistanceMetres;
 
