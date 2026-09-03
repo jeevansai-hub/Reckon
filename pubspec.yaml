@@ -1,0 +1,42 @@
+name: reckon
+description: "Reckon Companion App - Learned Inertial Odometry in GPS-Denied Environments (SIH 2026)"
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.2.0 <4.0.0"
+  flutter: ">=3.16.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Navigation & Mapping (Free-only OpenStreetMap stack)
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+
+  # Sensors & Hardware (Accelerometer, Gyroscope @ 10Hz)
+  sensors_plus: ^6.1.1
+  geolocator: ^13.0.1
+
+  # On-Device ML Inference
+  tflite_flutter: ^0.11.0
+
+  # State Management & Architecture
+  provider: ^6.1.2
+
+  # Visualization & Telemetry Waveforms
+  fl_chart: ^0.70.0
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/models/
+    - assets/map_styles/
