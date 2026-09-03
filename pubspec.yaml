@@ -17,7 +17,7 @@ dependencies:
 
   # Sensors & Hardware (Accelerometer, Gyroscope @ 10Hz)
   sensors_plus: ^6.1.1
-  geolocator: ^13.0.1
+  geolocator: ^14.0.3
 
   # On-Device ML Inference
   tflite_flutter: ^0.11.0
