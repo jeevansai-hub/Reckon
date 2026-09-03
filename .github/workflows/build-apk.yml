@@ -32,25 +32,22 @@ jobs:
       - name: Generate Android Toolchain
         run: |
           flutter create . --platforms=android --project-name reckon --org com.reckon.ai
-          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle || true
-          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle || true
 
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Android APK
         run: |
-          flutter build apk --debug --verbose > flutter_build.log 2>&1 || true
+          flutter build apk --debug > flutter_build.log 2>&1 || true
 
       - name: Push Build Log to Branch
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git checkout -B build-debug
-          tail -n 200 flutter_build.log > build_error.txt
-          find build/ -name "*.apk" > apk_locations.txt || true
-          git add build_error.txt apk_locations.txt
-          git commit -m "ci: capture build error and apk locations" || true
+          grep -B 5 -A 35 "FAILURE: Build failed" flutter_build.log > build_error.txt || tail -n 100 flutter_build.log > build_error.txt
+          git add build_error.txt
+          git commit -m "ci: capture exact failure reason" || true
           git push -f origin build-debug || true
 
       - name: Upload APK to Release if Built
