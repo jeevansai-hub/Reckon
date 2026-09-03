@@ -29,7 +29,6 @@ jobs:
       - name: Generate Android Toolchain
         run: |
           flutter create . --platforms=android --project-name reckon --org com.reckon.ai
-          # Ensure minSdkVersion is at least 23 for tflite_flutter
           sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle || true
           sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle || true
 
@@ -40,7 +39,12 @@ jobs:
         run: flutter test || true
 
       - name: Build Android APK
-        run: flutter build apk --debug
+        run: |
+          flutter build apk --debug || {
+            echo "=== FLUTTER BUILD ERROR DETAILS ==="
+            flutter build apk --debug --verbose 2>&1 | tail -n 100
+            exit 1
+          }
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
