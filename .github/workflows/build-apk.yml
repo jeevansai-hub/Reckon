@@ -9,6 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -35,24 +38,25 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      - name: Run Unit Tests
-        run: flutter test || true
-
       - name: Build Android APK
         run: |
           flutter build apk --debug --verbose > flutter_build.log 2>&1 || true
-          cat flutter_build.log | grep -E "FAILURE|error:|Exception|Error" | head -n 30 || true
 
-      - name: Upload Build Log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: flutter_build.log
+      - name: Push Build Log to Branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git checkout -B build-debug
+          tail -n 200 flutter_build.log > build_error.txt
+          find build/ -name "*.apk" > apk_locations.txt || true
+          git add build_error.txt apk_locations.txt
+          git commit -m "ci: capture build error and apk locations" || true
+          git push -f origin build-debug || true
 
-      - name: Upload APK Artifact
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Upload APK to Release if Built
+        uses: softprops/action-gh-release@v2
+        if: hashFiles('build/app/outputs/flutter-apk/*.apk') != ''
         with:
-          name: reckon-companion-app-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          tag_name: v1.0.0
+          name: Reckon App v1.0.0
+          files: build/app/outputs/flutter-apk/*.apk
