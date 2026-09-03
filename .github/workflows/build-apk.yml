@@ -64,6 +64,7 @@ jobs:
       - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: "Reckon App v1.0.0 (Android APK)"
+          tag_name: build-${{ github.run_number }}
+          name: "Reckon App build #${{ github.run_number }} (Android APK)"
+          make_latest: true
           files: build/app/outputs/flutter-apk/app-debug.apk
