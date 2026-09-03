@@ -26,11 +26,11 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Generate Android Toolchain
+        run: flutter create . --platforms=android --project-name reckon --org com.reckon.ai
+
       - name: Install Dependencies
         run: flutter pub get
-
-      - name: Generate Android Toolchain
-        run: flutter create . --platforms=android --org com.reckon.ai
 
       - name: Run Unit Tests
         run: flutter test
