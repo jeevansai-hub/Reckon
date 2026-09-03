@@ -40,15 +40,19 @@ jobs:
 
       - name: Build Android APK
         run: |
-          flutter build apk --debug || {
-            echo "=== FLUTTER BUILD ERROR DETAILS ==="
-            flutter build apk --debug --verbose 2>&1 | tail -n 100
-            exit 1
-          }
+          flutter build apk --debug --verbose > flutter_build.log 2>&1 || true
+          cat flutter_build.log | grep -E "FAILURE|error:|Exception|Error" | head -n 30 || true
+
+      - name: Upload Build Log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: flutter_build.log
 
       - name: Upload APK Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: reckon-companion-app-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
-          retention-days: 14
+          path: build/app/outputs/flutter-apk/*.apk
