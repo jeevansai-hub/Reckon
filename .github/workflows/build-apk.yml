@@ -34,15 +34,18 @@ jobs:
           flutter create . --platforms=android --project-name reckon --org com.reckon.ai
           
           # Fix geolocator_android compileSdkVersion incompatibility with Flutter 3.24
+          # Uses plugins.withId (fires on plugin apply) instead of afterEvaluate, because
+          # Flutter's root build.gradle already calls evaluationDependsOn(":app") on
+          # subprojects, which evaluates them before an appended afterEvaluate block
+          # would run, causing "Cannot run Project.afterEvaluate when already evaluated".
           cat << 'EOF' >> android/build.gradle
 
-          subprojects {
-              afterEvaluate { project ->
-                  if (project.hasProperty("android")) {
-                      project.android {
-                          compileSdkVersion 34
-                      }
-                  }
+          subprojects { proj ->
+              proj.plugins.withId("com.android.application") {
+                  proj.android { compileSdkVersion 34 }
+              }
+              proj.plugins.withId("com.android.library") {
+                  proj.android { compileSdkVersion 34 }
               }
           }
           EOF
