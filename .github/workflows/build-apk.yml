@@ -32,28 +32,38 @@ jobs:
       - name: Generate Android Toolchain
         run: |
           flutter create . --platforms=android --project-name reckon --org com.reckon.ai
+          
+          # Fix geolocator_android compileSdkVersion incompatibility with Flutter 3.24
+          cat << 'EOF' >> android/build.gradle
+
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty("android")) {
+                      project.android {
+                          compileSdkVersion 34
+                      }
+                  }
+              }
+          }
+          EOF
 
       - name: Install Dependencies
         run: flutter pub get
 
       - name: Build Android APK
         run: |
-          flutter build apk --debug > flutter_build.log 2>&1 || true
+          flutter build apk --debug
 
-      - name: Push Build Log to Branch
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git checkout -B build-debug
-          grep -B 5 -A 35 "FAILURE: Build failed" flutter_build.log > build_error.txt || tail -n 100 flutter_build.log > build_error.txt
-          git add build_error.txt
-          git commit -m "ci: capture exact failure reason" || true
-          git push -f origin build-debug || true
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: reckon-app-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          retention-days: 14
 
-      - name: Upload APK to Release if Built
+      - name: Create GitHub Release with APK
         uses: softprops/action-gh-release@v2
-        if: hashFiles('build/app/outputs/flutter-apk/*.apk') != ''
         with:
           tag_name: v1.0.0
-          name: Reckon App v1.0.0
-          files: build/app/outputs/flutter-apk/*.apk
+          name: "Reckon App v1.0.0 (Android APK)"
+          files: build/app/outputs/flutter-apk/app-debug.apk
