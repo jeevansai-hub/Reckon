@@ -30,7 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Column(
                 children: [
                   SwitchListTile(
-                    activeColor: AppColors.gps,
+                    activeThumbColor: AppColors.gps,
                     title: const Text('Hide mode chip'),
                     subtitle: const Text('For a pure "look, it\'s seamless" demo moment'),
                     value: _hideModeChip,
@@ -38,7 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const Divider(height: 1, color: AppColors.hairline),
                   SwitchListTile(
-                    activeColor: AppColors.gps,
+                    activeThumbColor: AppColors.gps,
                     title: const Text('Haptic on mode change'),
                     value: _hapticOnModeChange,
                     onChanged: (v) => setState(() => _hapticOnModeChange = v),
@@ -51,7 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             GlassPanel(
               padding: EdgeInsets.zero,
               child: SwitchListTile(
-                activeColor: AppColors.gps,
+                activeThumbColor: AppColors.gps,
                 title: const Text('Use local OSM extract'),
                 subtitle: const Text('For offline demo routes with no network — see open question in Project-Context §10'),
                 value: _useLocalOsmExtract,

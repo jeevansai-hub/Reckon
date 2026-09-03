@@ -11,7 +11,6 @@ class StubModel {
   StubModel({int? seed}) : _random = Random(seed);
 
   final Random _random;
-  double _heading = 0;
 
   /// One inference over a window of sensor samples.
   ///
@@ -20,7 +19,6 @@ class StubModel {
   StubPrediction predict(List<List<double>> window) {
     final distance = 8 + _random.nextDouble() * 6; // plausible metres per 5s window
     final headingDelta = (_random.nextDouble() - 0.5) * 0.35; // radians
-    _heading += headingDelta;
     return StubPrediction(distanceMetres: distance, headingChangeRadians: headingDelta);
   }
 }
