@@ -17,7 +17,7 @@ dependencies:
 
   # Sensors & Hardware (Accelerometer, Gyroscope @ 10Hz)
   sensors_plus: ^6.1.1
-  geolocator: ^14.0.3
+  geolocator: ^14.0.2
 
   # On-Device ML Inference
   tflite_flutter: ^0.11.0
@@ -33,13 +33,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
-
-# Force the rewritten geolocator_android (5.x) build.gradle, which drops the
-# legacy android.flutter.* property access that breaks under Flutter 3.24's
-# new Gradle plugin loader. geolocator ^14.0.3 already requires ^5.0.3, but
-# CI kept resolving 4.6.2, so this pins it explicitly.
-dependency_overrides:
-  geolocator_android: ^5.0.3
 
 flutter:
   uses-material-design: true
