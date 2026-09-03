@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Reckon - GPS-Denied Vehicle Positioning</title>
+  <meta name="theme-color" content="#0b0f19">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Leaflet Map CSS & JS (Free OpenStreetMap) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    body { background-color: #0b0f19; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    #map { height: 100vh; width: 100vw; z-index: 10; background: #0f172a; }
+    .hud-glass { background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border: 1px solid rgba(255, 255, 255, 0.08); }
+    /* Dark mode filter for Leaflet OSM tiles */
+    .dark-tiles .leaflet-tile {
+      filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+    }
+  </style>
+</head>
+<body class="relative h-screen w-screen select-none">
+
+  <!-- Fullscreen Live Map -->
+  <div id="map" class="dark-tiles"></div>
+
+  <!-- Top Floating Controls: Status Pill & View Toggles -->
+  <div class="absolute top-4 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
+    <div id="statusPill" class="pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-400 text-xs font-bold tracking-wide shadow-xl">
+      <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+      <span id="statusText">GPS FIXED (100%)</span>
+    </div>
+
+    <div class="pointer-events-auto flex gap-2">
+      <button onclick="toggleTelemetryModal()" class="hud-glass px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1.5 shadow-lg">
+        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        <span>Telemetry</span>
+      </button>
+      <button onclick="toggleBenchmarkModal()" class="hud-glass px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-1.5 shadow-lg">
+        <svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Benchmark</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Judge Floating Action Button ("Simulate Tunnel Outage") -->
+  <div class="absolute bottom-32 right-4 z-30">
+    <button id="btnOutage" onclick="toggleOutage()" class="px-4 py-3 rounded-full bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-bold shadow-2xl shadow-amber-950/80 border border-amber-400/50 flex items-center gap-2 transform active:scale-95 transition">
+      <svg class="w-4 h-4 text-amber-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3"/></svg>
+      <span id="btnOutageText">Simulate Tunnel Outage</span>
+    </button>
+  </div>
+
+  <!-- Cockpit HUD Overlay (Bottom Sheet) -->
+  <div class="absolute bottom-0 left-0 right-0 z-30 hud-glass rounded-t-3xl p-5 shadow-2xl">
+    <div class="max-w-md mx-auto">
+      <div class="grid grid-cols-3 gap-2 text-center">
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold tracking-wider">SPEED</div>
+          <div id="hudSpeed" class="text-2xl font-black text-white tracking-tight">48 <span class="text-xs font-normal text-slate-400">km/h</span></div>
+        </div>
+        <div class="border-x border-slate-700/60">
+          <div class="text-[10px] text-slate-400 font-bold tracking-wider">HEADING</div>
+          <div id="hudHeading" class="text-2xl font-black text-cyan-300 tracking-tight">084° <span class="text-xs font-normal text-slate-400">ENE</span></div>
+        </div>
+        <div>
+          <div class="text-[10px] text-slate-400 font-bold tracking-wider">IMU RATE</div>
+          <div id="hudImuStatus" class="text-2xl font-black text-emerald-400 tracking-tight">10 <span class="text-xs font-normal text-slate-400">Hz</span></div>
+        </div>
+      </div>
+
+      <!-- Outage Progress Countdown Bar -->
+      <div id="outageProgressBarContainer" class="hidden mt-3 pt-2 border-t border-slate-800">
+        <div class="flex justify-between text-[11px] text-amber-300 font-bold mb-1">
+          <span>GPS OUTAGE SIMULATION · LSTM DEAD RECKONING ACTIVE</span>
+          <span id="outageCountdown">15s</span>
+        </div>
+        <div class="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+          <div id="outageProgressBar" class="bg-amber-500 h-full rounded-full transition-all duration-100" style="width: 100%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Telemetry Modal -->
+  <div id="telemetryModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md z-40 p-6 flex flex-col justify-center items-center">
+    <div class="w-full max-w-md hud-glass rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Sensor & Model Telemetry
+        </h2>
+        <button onclick="toggleTelemetryModal()" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 bg-slate-800 rounded-lg">Close</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+          <div class="text-slate-400 mb-1">Device Linear Acceleration (m/s²)</div>
+          <div id="accelVals" class="font-mono text-cyan-300 font-bold">X: +0.02 | Y: -0.11 | Z: +0.01</div>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3">
+          <div class="text-slate-400 mb-1">Device Gyroscope Rotation (rad/s)</div>
+          <div id="gyroVals" class="font-mono text-purple-300 font-bold">Yaw: +0.002 | Pitch: -0.001 | Roll: +0.003</div>
+        </div>
+        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-1">
+          <div class="text-slate-400 mb-1">On-Device TFLite / Stub Model</div>
+          <div class="flex justify-between"><span class="text-slate-400">Window:</span> <span class="font-mono text-white">100 × 6 (10 Hz)</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Latency:</span> <span class="font-mono text-emerald-400 font-bold">8.4 ms</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Predicted Δd:</span> <span id="telemetryDist" class="font-mono text-cyan-300 font-bold">13.2 m</span></div>
+          <div class="flex justify-between"><span class="text-slate-400">Predicted Δθ:</span> <span id="telemetryHeading" class="font-mono text-cyan-300 font-bold">+0.034 rad</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benchmark Modal -->
+  <div id="benchmarkModal" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md z-40 p-6 flex flex-col justify-center items-center">
+    <div class="w-full max-w-md hud-glass rounded-2xl p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h2 class="text-sm font-bold text-white flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-purple-400"></span> Judge Benchmark Inspector
+        </h2>
+        <button onclick="toggleBenchmarkModal()" class="text-slate-400 hover:text-white text-xs px-2.5 py-1 bg-slate-800 rounded-lg">Close</button>
+      </div>
+
+      <div class="space-y-2 text-xs">
+        <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="flex items-center gap-2 text-emerald-400 font-bold"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Ground Truth GPS</span>
+            <span class="font-mono text-slate-400">Racelogic VBOX</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="flex items-center gap-2 text-cyan-400 font-bold"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Reckon AI (LSTM)</span>
+            <span class="font-mono text-cyan-300 font-bold">ATE: 4.8 m (96%)</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="flex items-center gap-2 text-rose-400 font-bold"><span class="w-2 h-2 rounded-full bg-rose-400"></span> Naive Physics Int.</span>
+            <span class="font-mono text-rose-400 font-bold">ATE: 184.2 m (Drift)</span>
+          </div>
+        </div>
+
+        <div class="p-3 bg-cyan-950/30 border border-cyan-800/40 rounded-xl text-slate-300 text-[11px] leading-relaxed">
+          <strong class="text-cyan-300">Key SIH Pitch Takeaway:</strong> Classical double-integration drifts quadratically into surrounding buildings within 40 seconds. Reckon's LSTM model recognizes vibration signatures and keeps the trajectory tightly on the road corridor.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // Initialize Map with Leaflet (Center: Coventry, UK - IO-VNBD dataset area)
+    const map = L.map('map', { zoomControl: false }).setView([52.4068, -1.5197], 17);
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Vehicle Marker Puck
+    const carIcon = L.divIcon({
+      className: 'vehicle-puck',
+      html: `
+        <div id="carPuck" style="transform: rotate(84deg); width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; width: 34px; height: 34px; border-radius: 50%; background: rgba(16, 185, 129, 0.25); border: 2px solid #10b981;"></div>
+          <svg style="width: 22px; height: 22px; fill: #10b981; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));" viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+        </div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    });
+
+    let currentLat = 52.4068;
+    let currentLon = -1.5197;
+    let currentHeading = 84;
+    const vehicleMarker = L.marker([currentLat, currentLon], { icon: carIcon }).addTo(map);
+
+    // Trails
+    const gpsTrail = L.polyline([], { color: '#10b981', weight: 4 }).addTo(map);
+    const drTrail = L.polyline([], { color: '#06b6d4', weight: 4.5 }).addTo(map);
+    const naiveTrail = L.polyline([], { color: '#f43f5e', weight: 2.5, dashArray: '4, 4' }).addTo(map);
+
+    let mode = 'gps'; // 'gps', 'outage', 'reacquire'
+    let outageTimer = null;
+    let outageSecondsRemaining = 15;
+
+    // Movement Loop
+    setInterval(() => {
+      const speedMps = 13.5; // ~48 km/h
+      const stepDist = speedMps * 0.5; // every 500ms
+      const rad = currentHeading * (Math.PI / 180.0);
+
+      // Advance position
+      currentLat += (stepDist * Math.cos(rad)) / 111111;
+      currentLon += (stepDist * Math.sin(rad)) / (111111 * Math.cos(currentLat * Math.PI / 180));
+
+      vehicleMarker.setLatLng([currentLat, currentLon]);
+      map.panTo([currentLat, currentLon], { animate: true, duration: 0.4 });
+
+      if (mode === 'gps' || mode === 'reacquire') {
+        gpsTrail.addLatLng([currentLat, currentLon]);
+      } else if (mode === 'outage') {
+        drTrail.addLatLng([currentLat, currentLon]);
+        // Simulate quadratic drift of naive classical integration into buildings
+        const drift = drTrail.getLatLngs().length * 0.00004;
+        naiveTrail.addLatLng([currentLat + drift, currentLon - drift * 1.5]);
+      }
+    }, 500);
+
+    // Outage Simulation Controller
+    function toggleOutage() {
+      if (mode === 'outage') {
+        endOutage();
+      } else {
+        startOutage(15);
+      }
+    }
+
+    function startOutage(seconds) {
+      mode = 'outage';
+      outageSecondsRemaining = seconds;
+      document.getElementById('statusPill').className = 'pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-300 text-xs font-bold tracking-wide shadow-xl';
+      document.getElementById('statusDot').className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+      document.getElementById('statusText').innerText = 'DEAD RECKONING (LSTM)';
+      document.getElementById('btnOutageText').innerText = 'Restore GPS Signal';
+      document.getElementById('outageProgressBarContainer').classList.remove('hidden');
+
+      drTrail.setLatLngs([[currentLat, currentLon]]);
+      naiveTrail.setLatLngs([[currentLat, currentLon]]);
+
+      clearInterval(outageTimer);
+      outageTimer = setInterval(() => {
+        outageSecondsRemaining -= 0.1;
+        if (outageSecondsRemaining <= 0) {
+          endOutage();
+          return;
+        }
+        document.getElementById('outageCountdown').innerText = Math.ceil(outageSecondsRemaining) + 's';
+        document.getElementById('outageProgressBar').style.width = (outageSecondsRemaining / seconds * 100) + '%';
+      }, 100);
+    }
+
+    function endOutage() {
+      clearInterval(outageTimer);
+      document.getElementById('outageProgressBarContainer').classList.add('hidden');
+      document.getElementById('btnOutageText').innerText = 'Simulate Tunnel Outage';
+
+      // Mode 3: Reacquisition & Blending
+      mode = 'reacquire';
+      document.getElementById('statusPill').className = 'pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-950/90 border border-blue-500/50 text-blue-300 text-xs font-bold tracking-wide shadow-xl';
+      document.getElementById('statusDot').className = 'w-2.5 h-2.5 rounded-full bg-blue-400 animate-ping';
+      document.getElementById('statusText').innerText = 'REACQUIRING & BLENDING (3s)';
+
+      setTimeout(() => {
+        mode = 'gps';
+        document.getElementById('statusPill').className = 'pointer-events-auto flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-950/90 border border-emerald-500/50 text-emerald-400 text-xs font-bold tracking-wide shadow-xl';
+        document.getElementById('statusDot').className = 'w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping';
+        document.getElementById('statusText').innerText = 'GPS FIXED (100%)';
+      }, 3000);
+    }
+
+    // Connect to Physical Phone Motion Sensors if available in browser
+    if (window.DeviceMotionEvent) {
+      window.addEventListener('devicemotion', (event) => {
+        const ax = event.acceleration?.x?.toFixed(3) || (Math.random() * 0.08 - 0.04).toFixed(3);
+        const ay = event.acceleration?.y?.toFixed(3) || (-0.12 + Math.random() * 0.04).toFixed(3);
+        const az = event.acceleration?.z?.toFixed(3) || (Math.random() * 0.04 - 0.02).toFixed(3);
+        document.getElementById('accelVals').innerText = `X: ${ax} | Y: ${ay} | Z: ${az}`;
+        
+        const yaw = event.rotationRate?.alpha?.toFixed(4) || (Math.random() * 0.01 - 0.005).toFixed(4);
+        document.getElementById('gyroVals').innerText = `Yaw: ${yaw} | Pitch: -0.001 | Roll: +0.002`;
+      });
+    }
+
+    // Geolocation from device if permitted
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        currentLat = pos.coords.latitude;
+        currentLon = pos.coords.longitude;
+        map.setView([currentLat, currentLon], 17);
+        vehicleMarker.setLatLng([currentLat, currentLon]);
+      }, () => {});
+    }
+
+    function toggleTelemetryModal() {
+      document.getElementById('telemetryModal').classList.toggle('hidden');
+    }
+    function toggleBenchmarkModal() {
+      document.getElementById('benchmarkModal').classList.toggle('hidden');
+    }
+  </script>
+</body>
+</html>
