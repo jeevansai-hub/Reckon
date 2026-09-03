@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide NavigationMode;
 import '../../core/constants/app_colors.dart';
 import '../../core/navigation/navigation_state.dart';
 

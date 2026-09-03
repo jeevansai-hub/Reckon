@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide NavigationMode;
 import 'package:latlong2/latlong.dart';
 import '../core/model/model_contract.dart';
 import '../core/model/stub_model.dart';

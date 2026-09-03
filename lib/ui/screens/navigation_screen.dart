@@ -1,5 +1,5 @@
 import 'dart:math';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide NavigationMode;
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
@@ -81,7 +81,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                           points: provider.naiveDriftTrail,
                           strokeWidth: 2.5,
                           color: AppColors.pathNaiveDrift.withOpacity(0.8),
-                          isDotted: true,
+                          pattern: const StrokePattern.dotted(),
                         ),
                     ],
                   ),
