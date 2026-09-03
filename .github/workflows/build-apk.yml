@@ -27,7 +27,11 @@ jobs:
           cache: true
 
       - name: Generate Android Toolchain
-        run: flutter create . --platforms=android --project-name reckon --org com.reckon.ai
+        run: |
+          flutter create . --platforms=android --project-name reckon --org com.reckon.ai
+          # Ensure minSdkVersion is at least 23 for tflite_flutter
+          sed -i 's/minSdkVersion = flutter.minSdkVersion/minSdkVersion = 23/g' android/app/build.gradle || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 23/g' android/app/build.gradle || true
 
       - name: Install Dependencies
         run: flutter pub get
